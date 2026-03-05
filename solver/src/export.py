@@ -68,7 +68,7 @@ def write_ranges_json(solver: CFRSolver, iteration: int, equity_samples: int,
         json.dump(output, f, separators=(",", ":"))
     os.replace(tmp, str(out))
     size_kb = out.stat().st_size / 1000
-    print(f"  → Wrote {out.name} ({size_kb:.0f} KB, {len(strategies):,} infosets)")
+    print(f"  -> Wrote {out.name} ({size_kb:.0f} KB, {len(strategies):,} infosets)")
 
 
 def run_timed(
