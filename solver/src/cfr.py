@@ -10,6 +10,8 @@ CFR+ vs vanilla CFR:
   2. strategy_sum accumulates with linear iteration weight t
 """
 
+import os
+import pickle
 import random
 import numpy as np
 
@@ -127,3 +129,36 @@ class CFRSolver:
             key: infoset.get_average_strategy()
             for key, infoset in self.infosets.items()
         }
+
+    def save_checkpoint(self, path: str, iteration: int, rng_state: object) -> None:
+        """Atomically save solver state to a pickle checkpoint file."""
+        data = {
+            "iteration": iteration,
+            "equity_samples": self.equity_samples,
+            "n_players": self.n_players,
+            "rng_state": rng_state,
+            "infosets": {
+                key: {
+                    "regret_sum": infoset.regret_sum.tolist(),
+                    "strategy_sum": infoset.strategy_sum.tolist(),
+                }
+                for key, infoset in self.infosets.items()
+            },
+        }
+        tmp = path + ".tmp"
+        with open(tmp, "wb") as f:
+            pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(tmp, path)  # atomic on all platforms
+
+    @classmethod
+    def load_checkpoint(cls, path: str) -> tuple["CFRSolver", int, object]:
+        """Load solver state from checkpoint. Returns (solver, iteration, rng_state)."""
+        with open(path, "rb") as f:
+            data = pickle.load(f)
+        solver = cls(n_players=data["n_players"], equity_samples=data["equity_samples"])
+        for key, arrays in data["infosets"].items():
+            infoset = InfoSet(n_actions=len(arrays["regret_sum"]))
+            infoset.regret_sum = np.array(arrays["regret_sum"])
+            infoset.strategy_sum = np.array(arrays["strategy_sum"])
+            solver.infosets[key] = infoset
+        return solver, data["iteration"], data["rng_state"]
